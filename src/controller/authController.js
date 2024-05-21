@@ -1,5 +1,7 @@
 const { UsersModels } = require("../model/users.model");
 const bcrypt = require("bcrypt");
+const userService = require("../service/userService");
+const authService = require("../service/authService");
 
 const getLoginPage = (req, res) => {
   res.render("login");
@@ -12,9 +14,7 @@ const getRegisterPage = (req, res) => {
 const loginRequest = async (req, res) => {
   const { username, password } = req.body;
 
-  const user = await UsersModels.query().findOne({
-    username,
-  });
+  const user = await authService.login(username);
 
   if (user && bcrypt.compareSync(password, user.password)) {
     res.status(200).json({ message: "Login Success", success: true });
@@ -26,21 +26,14 @@ const loginRequest = async (req, res) => {
 
 const registerUser = async (req, res) => {
   const {username, password, email, role} = req.body;
-  const hashedPassword = bcrypt.hashSync(password, 10);
+  const usersLength = await userService.getUsersLength();
+  const id = usersLength + 1;
 
-  const usersLength = (await UsersModels.query()).length;
-
-  if (username && password && email && role) {
-    const user = await UsersModels.query().insert({
-      id: usersLength + 1,
-      username,
-      password: hashedPassword,
-      email,
-      role,
-    });
-    res.status(201).json({ message: "Register new user successfully", success: true , user});
-  } else {
-    res.status(400).json({ message: "Something went wrong", success: false });
+  try {
+    const user = await userService.createUser(id, username, password, email, role)
+    res.status(201).json({ message: "Create new user successfully", user, success: true });
+  } catch(err) {
+    res.status(400).json({ message: "Something went wrong", success: false});
   }
 }
 
